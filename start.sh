@@ -102,11 +102,37 @@ if [ -r /sys/fs/cgroup/memory.max ] && [ "$(cat /sys/fs/cgroup/memory.max)" != m
 	limit_mb=$(( $(cat /sys/fs/cgroup/memory.max) / 1048576 ))
 fi
 
+# --- Leftovers from the previous container -------------------------------------
+# This script only runs when the container starts, so no process from an earlier
+# run of the service can still be alive. CCCC can't always prove that on Railway
+# (the restarted container keeps the host's boot ID and PID numbers repeat), and
+# then refuses to start with "has unconfirmed old work", which would crash-loop the
+# service after any crash. Release those records with upstream's own
+# `cccc daemon process-recovery ... accept --accept-risk` before starting.
+as_app() { setpriv --reuid="$APP_USER" --regid="$APP_USER" --init-groups -- env HOME="$HOME" USER="$APP_USER" LOGNAME="$APP_USER" CCCC_HOME="$CCCC_HOME" "$@"; }
+release_stale() { # $@: owner arguments
+	local list id ver n=0
+	list=$(as_app cccc daemon process-recovery "$@" list 2>/dev/null) || return 0
+	while read -r id ver; do
+		[ -n "$id" ] || continue
+		if as_app cccc daemon process-recovery "$@" accept --id "$id" --version "$ver" --accept-risk >/dev/null 2>&1; then
+			n=$((n + 1))
+		fi
+	done < <(printf '%s' "$list" | jq -r '.records[]? | "\(.id) \(.version)"' 2>/dev/null)
+	[ "$n" -gt 0 ] && log "released $n process record(s) left by the previous container ($*)"
+	return 0
+}
+release_stale --owner daemon
+release_stale --owner web
+for d in "$CCCC_HOME"/daemon/session-owners/*/; do
+	[ -d "$d" ] || continue
+	release_stale --owner session --owner-id "$(basename "$d")"
+done
+
 # --- Run CCCC ----------------------------------------------------------------------
 cd "$DATA/workspace"
 log "CCCC $(cccc --version 2>/dev/null | head -1) starting on port $CCCC_WEB_PORT (memory limit ${limit_mb} MB, ${cpus} CPU)"
-setpriv --reuid="$APP_USER" --regid="$APP_USER" --init-groups -- \
-	env HOME="$HOME" USER="$APP_USER" LOGNAME="$APP_USER" cccc --headless &
+as_app cccc --headless &
 app=$!
 stopping=0
 trap 'stopping=1; kill -TERM "$app" 2>/dev/null || true' TERM INT
