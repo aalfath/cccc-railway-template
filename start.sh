@@ -77,6 +77,10 @@ if [ -n "${LLM_API_KEY:-}" ]; then
 		log "Pi provider '$P' was changed by hand; leaving it alone"
 	fi
 	chmod 600 "$MODELS"
+	# Codex reads OPENAI_API_KEY; hand it the same key when it is an OpenAI key.
+	case "$LLM_BASE_URL" in https://api.openai.com/*) export OPENAI_API_KEY="${OPENAI_API_KEY:-$LLM_API_KEY}" ;; esac
+else
+	log "LLM_API_KEY is empty: agents need a key or a provider login before they can work"
 fi
 chown -R "$APP_USER:$APP_USER" "$HOME/.claude.json" "$HOME/.pi"
 
