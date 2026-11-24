@@ -24,6 +24,10 @@ if [ "${#TOKEN}" -lt 24 ] || ! printf '%s' "$TOKEN" | grep -Eq '^[A-Za-z0-9][A-Z
 fi
 
 mkdir -p "$CCCC_HOME" "$HOME" "$DATA/workspace"
+# Lay out a CCCC home the way `cccc` does on first start, so the token store we
+# write below doesn't make CCCC refuse the directory as "not a CCCC home".
+mkdir -p "$CCCC_HOME/daemon" "$CCCC_HOME/groups"
+[ -e "$CCCC_HOME/.cccc-rust-v1" ] || printf 'CCCC Rust home v1\n' > "$CCCC_HOME/.cccc-rust-v1"
 chown "$APP_USER:$APP_USER" "$DATA" "$CCCC_HOME" "$HOME" "$DATA/workspace"
 chmod 700 "$CCCC_HOME" "$HOME"
 # First boot on a volume restored as root: hand everything back to the app user.
