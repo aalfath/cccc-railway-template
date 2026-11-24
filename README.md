@@ -21,7 +21,7 @@ One-click Railway template for [CCCC](https://github.com/ChesterRa/cccc) **v0.4.
 
 ## How it works
 
-`start.sh` lays out `/data`, writes the admin token into CCCC's own token store (`/data/cccc/access_tokens.yaml`) so the Web UI is locked before it gets a public URL, seeds Pi's provider from the variables (the key stays in the environment, not on disk), caps thread pools to the service's CPUs, and runs `cccc --headless` as the unprivileged `node` user. If CCCC stops on its own, the script exits non-zero so Railway's restart policy brings it back. Upstream's `CCCC_WEB_ALLOW_UNAUTHENTICATED=1` is never set.
+`start.sh` lays out `/data`, writes the admin token into CCCC's own token store (`/data/cccc/access_tokens.yaml`) so the Web UI is locked before it gets a public URL, seeds Pi's provider from the variables (the key stays in the environment, not on disk), caps thread pools to the service's CPUs, releases process records left by a crashed earlier container (otherwise CCCC refuses to start with "unconfirmed old work"), and runs `cccc --headless` as the unprivileged `node` user. If CCCC stops on its own, the script exits non-zero so Railway's restart policy brings it back. Upstream's `CCCC_WEB_ALLOW_UNAUTHENTICATED=1` is never set.
 
 
 **Services.** One service, `CCCC`, built from `aalfath/cccc-railway-template`. It runs `cccc --headless` (daemon and Web UI) as an unprivileged user on Railway's `PORT`, behind Railway's HTTPS domain. Health check: `/api/v1/health`.
